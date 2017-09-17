@@ -121,17 +121,4 @@ minitok.expand = miniToken => {
   return `T1==${Buffer.from(stringified).toString('base64')}`;
 };
 
-const token =
-  'T1==cGFydG5lcl9pZD00NTY5MTc3MSZzaWc9M2Y3ZjNmNTdlZGY5ZTY3OGU1NmY4NjljNWIzNzczZjJjYzgxMmQ2ZDpzZXNzaW9uX2lkPTJfTVg0ME5UWTVNVGMzTVg1LU1UVXdOVFEzTnpFd01Ua3dPSDV6YVN0MFMxTnZjVVl6V1ZKT1F6SmpiR05rWTBsS1NWQi1mZyZjcmVhdGVfdGltZT0xNTA1NDc3MTAyJm5vbmNlPTAuMjkzMjk2ODE0NzIxMTYzMiZyb2xlPW1vZGVyYXRvciZleHBpcmVfdGltZT0xNTA1NTYzNTAy';
-const miniToken = minitok.minify(token);
-console.log('before: ', token);
-console.log('after:  ', miniToken);
-
-const backToToken = minitok.expand(miniToken);
-console.log('back:   ', backToToken);
-
-console.log(token === backToToken ? 'matches' : 'does not match');
-
-console.log((token.length / miniToken.length).toFixed(1));
-
 module.exports = minitok;

@@ -1,9 +1,10 @@
 {
-  "extends": ["airbnb-base", "prettier"],
+  "extends": ["airbnb-base", "prettier", "plugin:jest/recommended"],
   "parserOptions": {
     "sourceType": "script"
   },
   "rules": {
     "prefer-destructuring": 0
-  }
+  },
+  "plugins": ["jest"]
 }
