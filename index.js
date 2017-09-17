@@ -14,28 +14,28 @@ const sessionPrefixes = ['1_', '2_'];
 const tokenByteLength = 68;
 const sessionByteLength = 27;
 
-const bufferReadWriteFormats = [
-  'Int8',
-  'Int16BE',
-  'Int16LE',
-  'Int32BE',
-  'Int32LE',
-  'UInt8',
-  'UInt16BE',
-  'UInt16LE',
-  'UInt32BE',
-  'UInt32LE',
-  'DoubleBE',
-  'DoubleLE',
-  'FloatBE',
-  'FloatLE',
-];
+const bufferReadWriteFormats = {
+  Int8: 1,
+  Int16BE: 2,
+  Int16LE: 2,
+  Int32BE: 4,
+  Int32LE: 4,
+  UInt8: 1,
+  UInt16BE: 2,
+  UInt16LE: 2,
+  UInt32BE: 4,
+  UInt32LE: 4,
+  DoubleBE: 8,
+  DoubleLE: 8,
+  FloatBE: 4,
+  FloatLE: 4,
+};
 
 const writeBufferSequence = (buf, seq, offsetParam = 0) => {
   let offset = offsetParam;
 
   seq.forEach(([value, format]) => {
-    if (bufferReadWriteFormats.indexOf(format) !== -1) {
+    if (format in bufferReadWriteFormats) {
       offset = buf[`write${format}`](value, offset);
     } else if (format === 'buffer') {
       offset += value.copy(buf, offset);
@@ -45,6 +45,27 @@ const writeBufferSequence = (buf, seq, offsetParam = 0) => {
   });
 
   return offset;
+};
+
+const readBufferSequence = (buf, seq, offsetParam = 0) => {
+  let offset = offsetParam;
+  const results = [];
+
+  seq.forEach(([format, len]) => {
+    if (format in bufferReadWriteFormats) {
+      results.push(buf[`read${format}`](offset));
+      offset += bufferReadWriteFormats[format];
+    } else if (format === 'buffer') {
+      const bytes = Buffer.alloc(len);
+      buf.copy(bytes, 0, offset, offset + len);
+      offset += len;
+      results.push(bytes);
+    } else {
+      throw new Error(`Unexpected format: ${format}`);
+    }
+  });
+
+  return results;
 };
 
 const getSessionBytes = sessionId => {
@@ -112,34 +133,37 @@ const getSessionId = (partnerId, sessionBytes) => {
 minitok.expand = miniToken => {
   const bytes = bs58check.decode(miniToken);
 
-  let pos = 0;
+  const [
+    partner_id,
+    sigBytes,
+    sessionBytes,
+    create_time,
+    nonce,
+    roleIndex,
+    expire_time,
+  ] = readBufferSequence(bytes, [
+    ['UInt32BE'],
+    ['buffer', 20],
+    ['buffer', sessionByteLength],
+    ['UInt32BE'],
+    ['DoubleBE'],
+    ['UInt8'],
+    ['UInt32BE'],
+  ]);
 
-  const topPieces = {};
+  const sig = sigBytes.toString('hex');
+  const session_id = getSessionId(partner_id, sessionBytes);
+  const role = roles[roleIndex];
 
-  topPieces.partner_id = String(bytes.readUInt32BE(pos));
-  pos += 4;
-
-  const sigBytes = Buffer.alloc(20);
-  bytes.copy(sigBytes, 0, pos);
-  pos += 20;
-  topPieces.sig = sigBytes.toString('hex');
-
-  const sessionBytes = Buffer.alloc(sessionByteLength);
-  bytes.copy(sessionBytes, 0, pos, pos + sessionByteLength);
-  pos += sessionByteLength;
-  topPieces.session_id = getSessionId(topPieces.partner_id, sessionBytes);
-
-  topPieces.create_time = String(bytes.readUInt32BE(pos));
-  pos += 4;
-
-  topPieces.nonce = String(bytes.readDoubleBE(pos));
-  pos += 8;
-
-  topPieces.role = roles[bytes.readUInt8(pos)];
-  pos += 1;
-
-  topPieces.expire_time = String(bytes.readUInt32BE(pos));
-  pos += 4;
+  const topPieces = {
+    partner_id,
+    sig,
+    session_id,
+    create_time,
+    nonce,
+    role,
+    expire_time,
+  };
 
   const stringified = querystring
     .stringify(topPieces, '&', '=', {
