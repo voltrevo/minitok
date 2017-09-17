@@ -11,17 +11,20 @@ const minitok = {};
 const roles = ['moderator', 'publisher', 'subscriber'];
 
 const getSessionBytes = sessionId => {
+  const bytes = Buffer.alloc(27);
+
+  const prefixType = ['1_', '2_'].indexOf(sessionId.slice(0, 2));
+  bytes.writeUInt8(prefixType, 0);
+
   const pieces = Buffer.from(sessionId.slice(2), 'base64')
     .toString('latin1')
     .split('~');
 
-  const bytes = Buffer.alloc(26);
-
   // create_dt
-  bytes.writeDoubleBE(Number(pieces[3]), 0);
+  bytes.writeDoubleBE(Number(pieces[3]), 1);
 
   // nonce
-  Buffer.from(pieces[4], 'base64').copy(bytes, 8);
+  Buffer.from(pieces[4], 'base64').copy(bytes, 9);
 
   return bytes;
 };
@@ -37,7 +40,7 @@ minitok.minify = token => {
   topPieces.sig = sigPieces[0];
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
-  const bytes = Buffer.alloc(67);
+  const bytes = Buffer.alloc(68);
   let pos = 0; // eslint-disable-line no-unused-vars
 
   // partner id
@@ -65,16 +68,17 @@ minitok.minify = token => {
 };
 
 const getSessionId = (partnerId, sessionBytes) => {
-  const create_dt = sessionBytes.readDoubleBE(0);
+  const prefix = ['1_', '2_'][sessionBytes.readUInt8(0)];
+
+  const create_dt = sessionBytes.readDoubleBE(1);
 
   const nonceBytes = Buffer.alloc(18);
-  sessionBytes.copy(nonceBytes, 0, 8, 8 + 18);
+  sessionBytes.copy(nonceBytes, 0, 9, 9 + 18);
   const nonce = nonceBytes.toString('base64');
 
   const sessionBeforeBase64 = ['1', partnerId, '', create_dt, nonce, '', ''].join('~');
 
-  // TODO: Encode 1_ vs 2_
-  return `2_${Buffer.from(sessionBeforeBase64)
+  return `${prefix}${Buffer.from(sessionBeforeBase64)
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/=*$/, '')}`;
@@ -95,9 +99,9 @@ minitok.expand = miniToken => {
   pos += 20;
   topPieces.sig = sigBytes.toString('hex');
 
-  const sessionBytes = Buffer.alloc(26);
-  bytes.copy(sessionBytes, 0, pos, pos + 26);
-  pos += 26;
+  const sessionBytes = Buffer.alloc(27);
+  bytes.copy(sessionBytes, 0, pos, pos + 27);
+  pos += 27;
   topPieces.session_id = getSessionId(topPieces.partner_id, sessionBytes);
 
   topPieces.create_time = String(bytes.readUInt32BE(pos));
