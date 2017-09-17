@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable camelcase */
+
 const querystring = require('querystring');
 
 const bs58check = require('bs58check');
@@ -36,7 +38,7 @@ otMini.minify = token => {
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
   const bytes = new Buffer(67);
-  let pos = 0;
+  let pos = 0; // eslint-disable-line no-unused-vars
 
   // partner id
   pos = bytes.writeUInt32BE(Number(topPieces.partner_id), pos);
