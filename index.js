@@ -15,7 +15,7 @@ const getSessionBytes = sessionId => {
     .toString('latin1')
     .split('~');
 
-  const bytes = new Buffer(26);
+  const bytes = Buffer.alloc(26);
 
   // create_dt
   bytes.writeDoubleBE(Number(pieces[3]), 0);
@@ -37,14 +37,14 @@ otMini.minify = token => {
   topPieces.sig = sigPieces[0];
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
-  const bytes = new Buffer(67);
+  const bytes = Buffer.alloc(67);
   let pos = 0; // eslint-disable-line no-unused-vars
 
   // partner id
   pos = bytes.writeUInt32BE(Number(topPieces.partner_id), pos);
 
   // sig
-  pos += new Buffer(topPieces.sig, 'hex').copy(bytes, pos);
+  pos += Buffer.from(topPieces.sig, 'hex').copy(bytes, pos);
 
   // session id
   pos += getSessionBytes(topPieces.session_id).copy(bytes, pos);
@@ -67,7 +67,7 @@ otMini.minify = token => {
 const getSessionId = (partnerId, sessionBytes) => {
   const create_dt = sessionBytes.readDoubleBE(0);
 
-  const nonceBytes = new Buffer(18);
+  const nonceBytes = Buffer.alloc(18);
   sessionBytes.copy(nonceBytes, 0, 8, 8 + 18);
   const nonce = nonceBytes.toString('base64');
 
@@ -90,12 +90,12 @@ otMini.expand = miniToken => {
   topPieces.partner_id = String(bytes.readUInt32BE(pos));
   pos += 4;
 
-  const sigBytes = new Buffer(20);
+  const sigBytes = Buffer.alloc(20);
   bytes.copy(sigBytes, 0, pos);
   pos += 20;
   topPieces.sig = sigBytes.toString('hex');
 
-  const sessionBytes = new Buffer(26);
+  const sessionBytes = Buffer.alloc(26);
   bytes.copy(sessionBytes, 0, pos, pos + 26);
   pos += 26;
   topPieces.session_id = getSessionId(topPieces.partner_id, sessionBytes);
