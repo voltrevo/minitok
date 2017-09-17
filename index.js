@@ -14,6 +14,39 @@ const sessionPrefixes = ['1_', '2_'];
 const tokenByteLength = 68;
 const sessionByteLength = 27;
 
+const bufferReadWriteFormats = [
+  'Int8',
+  'Int16BE',
+  'Int16LE',
+  'Int32BE',
+  'Int32LE',
+  'UInt8',
+  'UInt16BE',
+  'UInt16LE',
+  'UInt32BE',
+  'UInt32LE',
+  'DoubleBE',
+  'DoubleLE',
+  'FloatBE',
+  'FloatLE',
+];
+
+const writeBufferSequence = (buf, seq, offsetParam = 0) => {
+  let offset = offsetParam;
+
+  seq.forEach(([value, format]) => {
+    if (bufferReadWriteFormats.indexOf(format) !== -1) {
+      offset = buf[`write${format}`](value, offset);
+    } else if (format === 'buffer') {
+      offset += value.copy(buf, offset);
+    } else {
+      throw new Error(`Unexpected format: ${format}`);
+    }
+  });
+
+  return offset;
+};
+
 const getSessionBytes = sessionId => {
   const bytes = Buffer.alloc(sessionByteLength);
 
@@ -45,28 +78,16 @@ minitok.minify = token => {
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
   const bytes = Buffer.alloc(tokenByteLength);
-  let pos = 0; // eslint-disable-line no-unused-vars
 
-  // partner id
-  pos = bytes.writeUInt32BE(Number(topPieces.partner_id), pos);
-
-  // sig
-  pos += Buffer.from(topPieces.sig, 'hex').copy(bytes, pos);
-
-  // session id
-  pos += getSessionBytes(topPieces.session_id).copy(bytes, pos);
-
-  // create_time
-  pos = bytes.writeUInt32BE(Number(topPieces.create_time), pos);
-
-  // nonce
-  pos = bytes.writeDoubleBE(Number(topPieces.nonce), pos);
-
-  // role
-  pos = bytes.writeUInt8(roles.indexOf(topPieces.role), pos);
-
-  // expire_time
-  pos = bytes.writeUInt32BE(Number(topPieces.expire_time), pos);
+  writeBufferSequence(bytes, [
+    [topPieces.partner_id, 'UInt32BE'],
+    [Buffer.from(topPieces.sig, 'hex'), 'buffer'],
+    [getSessionBytes(topPieces.session_id), 'buffer'],
+    [topPieces.create_time, 'UInt32BE'],
+    [topPieces.nonce, 'DoubleBE'],
+    [roles.indexOf(topPieces.role), 'UInt8'],
+    [topPieces.expire_time, 'UInt32BE'],
+  ]);
 
   return bs58check.encode(bytes);
 };
