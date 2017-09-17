@@ -8,8 +8,10 @@ const otMini = {};
 
 const roles = ['moderator', 'publisher', 'subscriber'];
 
-const getSessionBytes = (sessionId) => {
-  const pieces = Buffer.from(sessionId.slice(2), 'base64').toString('latin1').split('~');
+const getSessionBytes = sessionId => {
+  const pieces = Buffer.from(sessionId.slice(2), 'base64')
+    .toString('latin1')
+    .split('~');
 
   const bytes = new Buffer(26);
 
@@ -22,27 +24,25 @@ const getSessionBytes = (sessionId) => {
   return bytes;
 };
 
-otMini.minify = (token) => {
+otMini.minify = token => {
   if (token.slice(0, 4) !== 'T1==') {
-    throw new TypeError('Not an opentok token: ' + token);
+    throw new TypeError(`Not an opentok token: ${token}`);
   }
 
-  const topPieces = querystring.parse(
-    Buffer.from(token.slice(4), 'base64').toString('latin1')
-  );
+  const topPieces = querystring.parse(Buffer.from(token.slice(4), 'base64').toString('latin1'));
 
   const sigPieces = topPieces.sig.split(':');
   topPieces.sig = sigPieces[0];
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
-  let bytes = new Buffer(67);
+  const bytes = new Buffer(67);
   let pos = 0;
 
   // partner id
   pos = bytes.writeUInt32BE(Number(topPieces.partner_id), pos);
 
   // sig
-  pos += (new Buffer(topPieces.sig, 'hex')).copy(bytes, pos);
+  pos += new Buffer(topPieces.sig, 'hex').copy(bytes, pos);
 
   // session id
   pos += getSessionBytes(topPieces.session_id).copy(bytes, pos);
@@ -72,10 +72,13 @@ const getSessionId = (partnerId, sessionBytes) => {
   const sessionBeforeBase64 = ['1', partnerId, '', create_dt, nonce, '', ''].join('~');
 
   // TODO: Encode 1_ vs 2_
-  return '2_' + Buffer.from(sessionBeforeBase64).toString('base64').replace(/\+/g, '-').replace(/=*$/, '');
+  return `2_${Buffer.from(sessionBeforeBase64)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/=*$/, '')}`;
 };
 
-otMini.expand = (miniToken) => {
+otMini.expand = miniToken => {
   const bytes = bs58check.decode(miniToken);
 
   let pos = 0;
@@ -107,14 +110,17 @@ otMini.expand = (miniToken) => {
   topPieces.expire_time = String(bytes.readUInt32BE(pos));
   pos += 4;
 
-  const stringified = querystring.stringify(topPieces, '&', '=', {
-    encodeURIComponent: str => str,
-  }).replace('&session_id', ':session_id');
+  const stringified = querystring
+    .stringify(topPieces, '&', '=', {
+      encodeURIComponent: str => str,
+    })
+    .replace('&session_id', ':session_id');
 
-  return 'T1==' + Buffer.from(stringified).toString('base64');
+  return `T1==${Buffer.from(stringified).toString('base64')}`;
 };
 
-const token = 'T1==cGFydG5lcl9pZD00NTY5MTc3MSZzaWc9M2Y3ZjNmNTdlZGY5ZTY3OGU1NmY4NjljNWIzNzczZjJjYzgxMmQ2ZDpzZXNzaW9uX2lkPTJfTVg0ME5UWTVNVGMzTVg1LU1UVXdOVFEzTnpFd01Ua3dPSDV6YVN0MFMxTnZjVVl6V1ZKT1F6SmpiR05rWTBsS1NWQi1mZyZjcmVhdGVfdGltZT0xNTA1NDc3MTAyJm5vbmNlPTAuMjkzMjk2ODE0NzIxMTYzMiZyb2xlPW1vZGVyYXRvciZleHBpcmVfdGltZT0xNTA1NTYzNTAy';
+const token =
+  'T1==cGFydG5lcl9pZD00NTY5MTc3MSZzaWc9M2Y3ZjNmNTdlZGY5ZTY3OGU1NmY4NjljNWIzNzczZjJjYzgxMmQ2ZDpzZXNzaW9uX2lkPTJfTVg0ME5UWTVNVGMzTVg1LU1UVXdOVFEzTnpFd01Ua3dPSDV6YVN0MFMxTnZjVVl6V1ZKT1F6SmpiR05rWTBsS1NWQi1mZyZjcmVhdGVfdGltZT0xNTA1NDc3MTAyJm5vbmNlPTAuMjkzMjk2ODE0NzIxMTYzMiZyb2xlPW1vZGVyYXRvciZleHBpcmVfdGltZT0xNTA1NTYzNTAy';
 const miniToken = otMini.minify(token);
 console.log('before: ', token);
 console.log('after:  ', miniToken);
@@ -124,6 +130,6 @@ console.log('back:   ', backToToken);
 
 console.log(token === backToToken ? 'matches' : 'does not match');
 
-console.log((token.length / miniToken.length).toFixed(1))
+console.log((token.length / miniToken.length).toFixed(1));
 
 module.exports = otMini;
