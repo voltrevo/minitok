@@ -9,11 +9,15 @@ const bs58check = require('bs58check');
 const minitok = {};
 
 const roles = ['moderator', 'publisher', 'subscriber'];
+const sessionPrefixes = ['1_', '2_'];
+
+const tokenByteLength = 68;
+const sessionByteLength = 27;
 
 const getSessionBytes = sessionId => {
-  const bytes = Buffer.alloc(27);
+  const bytes = Buffer.alloc(sessionByteLength);
 
-  const prefixType = ['1_', '2_'].indexOf(sessionId.slice(0, 2));
+  const prefixType = sessionPrefixes.indexOf(sessionId.slice(0, 2));
   bytes.writeUInt8(prefixType, 0);
 
   const pieces = Buffer.from(sessionId.slice(2), 'base64')
@@ -40,7 +44,7 @@ minitok.minify = token => {
   topPieces.sig = sigPieces[0];
   topPieces.session_id = sigPieces[1].slice('session_id='.length);
 
-  const bytes = Buffer.alloc(68);
+  const bytes = Buffer.alloc(tokenByteLength);
   let pos = 0; // eslint-disable-line no-unused-vars
 
   // partner id
@@ -68,7 +72,7 @@ minitok.minify = token => {
 };
 
 const getSessionId = (partnerId, sessionBytes) => {
-  const prefix = ['1_', '2_'][sessionBytes.readUInt8(0)];
+  const prefix = sessionPrefixes[sessionBytes.readUInt8(0)];
 
   const create_dt = sessionBytes.readDoubleBE(1);
 
@@ -99,9 +103,9 @@ minitok.expand = miniToken => {
   pos += 20;
   topPieces.sig = sigBytes.toString('hex');
 
-  const sessionBytes = Buffer.alloc(27);
-  bytes.copy(sessionBytes, 0, pos, pos + 27);
-  pos += 27;
+  const sessionBytes = Buffer.alloc(sessionByteLength);
+  bytes.copy(sessionBytes, 0, pos, pos + sessionByteLength);
+  pos += sessionByteLength;
   topPieces.session_id = getSessionId(topPieces.partner_id, sessionBytes);
 
   topPieces.create_time = String(bytes.readUInt32BE(pos));
